@@ -1,0 +1,185 @@
+#include <iostream>
+#include <vector>
+#include <map>
+#include <list>
+#include <fstream>
+
+using namespace std;
+
+struct node
+{
+	int pos;
+	char value;
+	node* left = NULL;
+	node* right = NULL;
+};
+
+void my_sort(list<node*>& words)
+{
+	vector<node*> Copy;
+	list<node*>::iterator it;
+	for (it = words.begin(); it != words.end(); it++)
+	{
+		Copy.push_back(*it);
+	}
+
+	for (int i = 0; i < words.size()-1; i++)
+	{
+		for (int j = i+1; j < words.size(); j++)
+		{
+			if (Copy[i]->pos > Copy[j]->pos)
+			{
+				node* p = Copy[i];
+				Copy[i] = Copy[j];
+				Copy[j] = p;
+			}
+		}
+	}
+
+	list<node*> new_l;
+	for (int i = 0; i < Copy.size(); i++)
+	{
+		new_l.push_back(Copy[i]);
+	}
+
+	words = new_l;
+}
+
+void BuildCode(node* root, vector<int>& cod, map<char, vector<int> >& table)
+{
+	if (root->left != NULL)
+	{
+		cod.push_back(0);
+		BuildCode(root->left, cod, table);
+	}
+
+	if (root->right != NULL)
+	{
+		cod.push_back(1);
+		BuildCode(root->right, cod, table);
+	}
+
+	if (root->left == NULL && root->right == NULL)
+	{
+		table[root->value] = cod;
+	}
+
+	if (!cod.empty())
+		cod.pop_back();
+}
+
+
+
+int main()
+{
+
+	ifstream f("input.txt");
+
+	map<char, int> words;
+
+	while (!f.eof())
+	{
+		char s = f.get();
+		words[s]++; // Увеличиваем количество вхождений буквы 
+	}
+
+	list<node*> code;
+	//vector<node*> code;
+
+	map<char, int>::iterator j;
+	for (j = words.begin(); j != words.end(); j++) // Складываю все буквы, с количеством их вхождений, в список
+	{
+		node* p = new node;
+		p->value = j->first;
+		p->pos = j->second;
+		code.push_back(p);
+	}
+
+	//////  создаем дерево		
+
+	while (code.size() != 1)
+	{
+		my_sort(code);
+
+		node* First = code.front();
+		code.pop_front();
+		node* Second = code.front();
+		code.pop_front();
+
+		node* parent = new node;
+		parent->pos = First->pos + Second->pos;
+		parent->left = First;
+		parent->right = Second;
+
+		code.push_back(parent);
+	}
+
+	node* root = code.front();
+
+	vector<int> cod;
+	map<char, vector<int> > table; // Массив: символ - код
+
+	BuildCode(root, cod, table);
+	
+	vector<int> letter;
+
+	f.clear(); // cбрасывание ошибок
+	f.seekg(0); // Перемещение указателя в начало
+	ofstream g("output.txt");
+	int count = 0;
+	char buf = 0;
+	while (!f.eof())
+	{
+		char s = f.get();
+		vector<int> x = table[s];
+		for (int j = 0; j < x.size(); j++)
+		{
+			buf = buf | x[j] << (7 - count);
+			count++;
+			if (count == 8)
+			{
+				count = 0;
+				g << buf;
+				buf = 0;
+			}
+		}
+	}
+	g.close();
+	f.close();
+
+	ifstream F("output.txt");
+
+	node* p = root;
+	count = 0;
+	char byte = F.get();
+	while (!F.eof())
+	{
+		bool flag = byte & (1 << (7 - count));
+		if (flag)
+		{
+			p = p->right;
+		}
+		else
+		{
+			p = p->left;
+		}
+
+		if (p->left == NULL && p->right == NULL)
+		{
+			cout << p->value;
+			p = root;
+		}
+		count++;
+
+		if (count == 8)
+		{
+			count = 0;
+			byte = F.get();;
+		}
+	}
+	F.close();
+
+	cout << endl;
+
+	return 0;
+}
